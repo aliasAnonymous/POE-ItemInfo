@@ -1,4 +1,4 @@
-﻿; Path of Exile Item Info Tooltip
+; Path of Exile Item Info Tooltip
 ;
 ; Version: 1.9.2 (hazydoc / IGN:Sadou) Original Author
 ; Script is currently maintained by various people and kept up to date by aRTy42 / IGN: Erinyen
@@ -73,7 +73,7 @@
 ;     that can boost a range or a single value to adjust for Item Quality but currently these aren't used
 ;     much. Partially this is also because it is not easy to tell if out-of-bounds cases are the result
 ;     of faulty input data (I initially pulled data from the PoE mods compendium but later made the PoE
-;     homepage the authoritative source overruling data from other sources) or of other unreckognized and
+;     homepage the authoritative source overruling data from other sources) or of other unrecognized and
 ;     unhandled entities or systems.
 ;
 ; Todo:
@@ -1226,7 +1226,7 @@ LookupAffixData(Filename, ItemLevel, Value, ByRef BracketLevel="", ByRef Tier=0)
             {
                 MiddlePart := " to "
             }
-            ; Record bracket range if it is withing bounds of the text file entry
+            ; Record bracket range if it is within bounds of the text file entry
             If (((ValueLo >= LBMin) and (ValueLo <= LBMax)) and ((ValueHi >= UBMin) and (ValueHi <= UBMax)))
             {
                 BracketRange = %LBPart%%MiddlePart%%UBPart%
@@ -5619,6 +5619,10 @@ PostProcessData(ParsedData)
 ParseClipBoardChanges()
 {
     Global Opts, Globals
+	
+	;AliasAnonSTART
+	Global AffixTotals, AffixLines
+	;AliasAnonSTOP
 
     CBContents := GetClipboardContents()
     CBContents := PreProcessContents(CBContents)
@@ -5627,7 +5631,7 @@ ParseClipBoardChanges()
     
     If (GetKeyState("Shift"))
     {
-        Globals.Set("TierRelativeToItemLevelOverride", !Opts.TierRelativeToItemLevel)
+        ;AliasAnon Globals.Set("TierRelativeToItemLevelOverride", !Opts.TierRelativeToItemLevel)
     }
     Else
     {
@@ -5641,7 +5645,59 @@ ParseClipBoardChanges()
     {
         SetClipboardContents(ParsedData)
     }
-    ShowToolTip(ParsedData)
+	
+	;AliasAnonSTART
+	;SearchString:TierThreshold
+	TargetPrefixArray:={"to maximum Energy Shield":2,"increased maximum Energy Shield":2}
+	TargetSuffixArray:={"to all Attributes":2,"to Strength":4,"to Dexterity":3,"to Intelligence":3}
+	ItemHasTargetPrefix:=False
+	ItemHasTargetSuffix:=False
+	;Showsignal GO (undesired roll) | STOP (desired roll)
+	NumAffixLines := AffixLines.MaxIndex()
+    Loop, %NumAffixLines%
+    {
+        RegExMatch(AffixLines[A_Index],"(.+)\|(?:.+)\|(P|S)(?:.+)\|(\d)\/\d.*",matches)
+		if matches2=P
+		{
+			for targetPrefix, targetTier in TargetPrefixArray
+			{
+				ifInString, matches1, %targetPrefix%
+				{
+					if matches3<=%targetTier%
+					{
+						ItemHasTargetPrefix:=True
+					}
+				}
+			}
+		}
+		if matches2=S
+		{
+			
+			for targetSuffix, targetTier in TargetSuffixArray
+			{
+				ifInString, matches1, %targetSuffix%
+				{
+					if matches3<=%targetTier%
+					{
+						ItemHasTargetSuffix:=True
+					}
+				}
+			}
+		}
+	}
+	if (ItemHasTargetPrefix and ItemHasTargetSuffix)
+	or (ItemHasTargetPrefix and AffixTotals.NumSuffixes==0)
+	or (AffixTotals.NumPrefixes==0 and ItemHasTargetSuffix)
+	{
+	ParsedData := ParsedData . "`n`nSTOP"
+	}
+    else
+	{
+	ParsedData := ParsedData . "`n`nGO"
+	}
+	;AliasAnonEND
+	
+	ShowToolTip(ParsedData)
 }
 
 AssembleDamageDetails(FullItemData)
