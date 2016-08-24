@@ -1,0 +1,6 @@
+p|to maximum Energy Shield|2
+p|increased maximum Energy Shield|2
+s|to all Attributes|2
+s|to Strength|4
+s|to Dexterity|3
+s|to Intelligence|3
