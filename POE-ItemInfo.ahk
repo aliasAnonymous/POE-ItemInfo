@@ -198,6 +198,7 @@ class UserOptions {
                                     ; T4/8 would represent the fourth highest tier, in eight total tiers.
 									
 	ShowDarkShrineInfo := 0  		; Appends info about DarkShrine effects of affixes to rares
+	ShowAlterationCraftingSignal := 0 ;aliasAnon
 
     TierRelativeToItemLevel := 0    ; When determining the affix bracket tier, take item level into consideration.
                                     ; However, this also means that the lower the item level the less the diversity
@@ -295,6 +296,7 @@ class UserOptions {
         this.ShowAffixBracketTierTotal := GuiGet("ShowAffixBracketTierTotal")
         this.TierRelativeToItemLevel := GuiGet("TierRelativeToItemLevel")
         this.ShowDarkShrineInfo := GuiGet("ShowDarkShrineInfo")
+		this.ShowAlterationCraftingSignal := GuiGet("ShowAlterationCraftingSignal") ;aliasanon
         this.ShowCurrencyValueInChaos := GuiGet("ShowCurrencyValueInChaos")
         this.DisplayToolTipAtFixedCoords := GuiGet("DisplayToolTipAtFixedCoords")
         this.ScreenOffsetX := GuiGet("ScreenOffsetX")
@@ -537,6 +539,7 @@ CreateSettingsUI()
 
 Menu, TextFiles, Add, Additional Macros, EditAdditionalMacros
 Menu, TextFiles, Add, Currency Rates, EditCurrencyRates
+Menu, TextFiles, Add, Alteration Signal, EditAlterationSignal ;AliasAnon
 
 
 ; Menu tooltip
@@ -5619,10 +5622,6 @@ PostProcessData(ParsedData)
 ParseClipBoardChanges()
 {
     Global Opts, Globals
-	
-	;AliasAnonSTART
-	Global AffixTotals, AffixLines
-	;AliasAnonSTOP
 
     CBContents := GetClipboardContents()
     CBContents := PreProcessContents(CBContents)
@@ -5647,53 +5646,71 @@ ParseClipBoardChanges()
     }
 	
 	;AliasAnonSTART
-	;SearchString:TierThreshold
-	TargetPrefixArray:={"to maximum Energy Shield":2,"increased maximum Energy Shield":2}
-	TargetSuffixArray:={"to all Attributes":2,"to Strength":4,"to Dexterity":3,"to Intelligence":3}
-	ItemHasTargetPrefix:=False
-	ItemHasTargetSuffix:=False
-	;Showsignal GO (undesired roll) | STOP (desired roll)
-	NumAffixLines := AffixLines.MaxIndex()
-    Loop, %NumAffixLines%
-    {
-        RegExMatch(AffixLines[A_Index],"(.+)\|(?:.+)\|(P|S)(?:.+)\|(\d)\/\d.*",matches)
-		if matches2=P
+	if Opts.ShowAlterationCraftingSignal = 1
+	{
+		Global AffixTotals, AffixLines
+		;SearchString:TierThreshold
+		TargetPrefixArray:=Object() ;{"to maximum Energy Shield":2,"increased maximum Energy Shield":2}
+		TargetSuffixArray:=Object() ;{"to all Attributes":2,"to Strength":4,"to Dexterity":3,"to Intelligence":3}
+		ItemHasTargetPrefix:=False
+		ItemHasTargetSuffix:=False
+		;Showsignal GO (undesired roll) | STOP (desired roll)
+		NumAffixLines := AffixLines.MaxIndex()
+		
+		Loop, Read, %A_ScriptDir%\AlterationCraftingSignalInput.txt
 		{
-			for targetPrefix, targetTier in TargetPrefixArray
+			RegExMatch(A_LoopReadLine,"(p|s)\|(?:((?:\w|\s)+)\|(\d+))+",matches)
+			if matches1=p
 			{
-				ifInString, matches1, %targetPrefix%
-				{
-					if matches3<=%targetTier%
-					{
-						ItemHasTargetPrefix:=True
-					}
-				}
+				TargetPrefixArray[matches2]:=matches3
 			}
-		}
-		if matches2=S
-		{
+			else if matches1=s
+			{
+				TargetSuffixArray[matches2]:=matches3
+			}
 			
-			for targetSuffix, targetTier in TargetSuffixArray
+		}
+		
+		Loop, %NumAffixLines%
+		{
+			RegExMatch(AffixLines[A_Index],"(.+)\|(?:.+)\|(P|S)(?:.+)\|(\d)\/\d.*",matches)
+			if matches2=P
 			{
-				ifInString, matches1, %targetSuffix%
+				for targetPrefix, targetTier in TargetPrefixArray
 				{
-					if matches3<=%targetTier%
+					ifInString, matches1, %targetPrefix%
 					{
-						ItemHasTargetSuffix:=True
+						if matches3<=%targetTier%
+						{
+							ItemHasTargetPrefix:=True
+						}
+					}
+				}
+			}
+			if matches2=S
+			{
+				for targetSuffix, targetTier in TargetSuffixArray
+				{
+					ifInString, matches1, %targetSuffix%
+					{
+						if matches3<=%targetTier%
+						{
+							ItemHasTargetSuffix:=True
+						}
 					}
 				}
 			}
 		}
-	}
-	if (ItemHasTargetPrefix and ItemHasTargetSuffix)
-	or (ItemHasTargetPrefix and AffixTotals.NumSuffixes==0)
-	or (AffixTotals.NumPrefixes==0 and ItemHasTargetSuffix)
-	{
-	ParsedData := ParsedData . "`n`nSTOP"
-	}
-    else
-	{
-	ParsedData := ParsedData . "`n`nGO"
+		if (ItemHasTargetPrefix and ItemHasTargetSuffix)
+		or (ItemHasTargetPrefix and AffixTotals.NumSuffixes==0)
+		or (AffixTotals.NumPrefixes==0 and ItemHasTargetSuffix)
+		{
+		ParsedData := ParsedData . "`n`nSTOP"
+		}
+		else
+		{
+		ParsedData := ParsedData . "`n`nGO"
+		}
 	}
 	;AliasAnonEND
 	
@@ -7169,6 +7186,7 @@ CreateSettingsUI()
         AddToolTip(ShowAffixBracketTierTotalH, "Show number of total affix bracket tiers in format T/N,`n where T = tier on item, N = number of total tiers available")
     GuiAddCheckbox("Show Darkshrine information", "x287 y345 w210 h20", Opts.ShowDarkShrineInfo, "ShowDarkShrineInfo", "ShowDarkShrineInfoH")
     AddToolTip(ShowDarkShrineInfoH, "Show information about possible Darkshrine effects")
+	GuiAddCheckbox("Show Alteration Crafting Signal", "x17 y467 w210 h30", Opts.ShowAlterationCraftingSignal, "ShowAlterationCraftingSignal","ShowAlterationCraftingSignalH") ;aliasAnon
         
     ; Display - Results 
 
@@ -7283,6 +7301,7 @@ UpdateSettingsUI()
     }
     GuiControl,, TierRelativeToItemLevel, % Opts.TierRelativeToItemLevel
     GuiControl,, ShowDarkShrineInfo, % Opts.ShowDarkShrineInfo
+	GuiControl,, ShowAlterationCraftingSignal, % Opts.ShowAlterationCraftingSignal ;AliasAnon
     
     GuiControl,, CompactDoubleRanges, % Opts.CompactDoubleRanges
     GuiControl,, CompactAffixTypes, % Opts.CompactAffixTypes
@@ -7358,6 +7377,7 @@ ReadConfig(ConfigPath="config.ini")
         Opts.TierRelativeToItemLevel := IniRead(ConfigPath, "DisplayAffixes", "TierRelativeToItemLevel", Opts.TierRelativeToItemLevel)
         Opts.ShowAffixBracketTierTotal := IniRead(ConfigPath, "DisplayAffixes", "ShowAffixBracketTierTotal", Opts.ShowAffixBracketTierTotal)
         Opts.ShowDarkShrineInfo := IniRead(ConfigPath, "DisplayAffixes", "ShowDarkShrineInfo", Opts.ShowDarkShrineInfo)
+		Opts.ShowAlterationCraftingSignal := IniRead(ConfigPath,"DisplayAffixes","ShowAlterationCraftingSignal", Opts.ShowAlterationCraftingSignal) ;AliasAnon
         
         ; Display - Results
         
@@ -7410,6 +7430,7 @@ WriteConfig(ConfigPath="config.ini")
     IniWrite(Opts.TierRelativeToItemLevel, ConfigPath, "DisplayAffixes", "TierRelativeToItemLevel")
     IniWrite(Opts.ShowAffixBracketTierTotal, ConfigPath, "DisplayAffixes", "ShowAffixBracketTierTotal")
     IniWrite(Opts.ShowDarkShrineInfo, ConfigPath, "DisplayAffixes", "ShowDarkShrineInfo")
+	IniWrite(Opts.ShowAlterationCraftingSignal, ConfigPath, "DisplayAffixes", "ShowAlterationCraftingSignal") ;aliasanon
     
     ; Display - Results
     
@@ -7699,7 +7720,11 @@ EditAdditionalMacros:
 EditCurrencyRates:
     OpenCreateDataTextFile("CurrencyRates.txt")
     return
-
+;aliasAnonSTART
+EditAlterationSignal:
+	OpenMainDirFile("AlterationCraftingSignalInput.txt")
+	return
+;aliasAnonSTOP
 3GuiClose:
     Gui, 3:Cancel
     return
